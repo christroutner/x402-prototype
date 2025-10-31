@@ -5,14 +5,18 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "lint": "standard --env mocha --fix"
   },
   "author": "Chris Troutner <chris.troutner@gmail.com>",
-  "license": "GPL-2.0-only",
+  "license": "GPL-3.0",
   "type": "module",
   "dependencies": {
     "dotenv": "17.2.3",
     "express": "5.1.0",
     "x402-express": "0.7.1"
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
   }
 }
