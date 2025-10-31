@@ -21,7 +21,7 @@ async function main () {
       process.exit(1)
     }
 
-    // Make a normal API call and expect a 402 error
+    // Step 1: Make a normal API call and expect a 402 error
     console.log('\n\nStep 1: Making first call, expecting a 402 error returned.')
     try {
       const response = await axios.get(baseURL + endpointPath)
@@ -33,29 +33,34 @@ async function main () {
       console.log('\n\n')
     }
 
-    // Make a second call with a payment.
+    // Step 2: Make a second call with a payment.
+    console.log('\n\nStep 2: Making second call with a payment.')
 
-    // const signer = await createSigner('base-sepolia', privateKey)
+    try {
+      // Create a signer from the private key.
+      const signer = await createSigner('base-sepolia', privateKey)
 
-    // const api = withPaymentInterceptor(
-    //   axios.create({
-    //     baseURL
-    //   }),
-    //   signer
-    // )
+      // Wrap axios with the payment interceptor for automatic payment and
+      // retry when the 402 error is encountered.
+      const api = withPaymentInterceptor(
+        axios.create({
+          baseURL
+        }),
+        signer
+      )
 
-    // try {
-    //   // Call without making a payment, expect a 402 error
-    //   const response = await api.get(endpointPath)
-    //   console.log(response.data)
-    // } catch (err) {
-    //   console.log(`Status code: ${err.response.status}`)
-    //   console.log(`Error data: ${JSON.stringify(err.response.data, null, 2)}`)
+      // Call the same endpoint path with a payment.
+      const response = await api.get(endpointPath)
+      console.log('Data returned after payment: ', response.data)
+    } catch (err) {
+      console.log('Step 2 failed. Expected a 200 success status code.')
+      console.log(`Status code: ${err.response.status}`)
+      console.log(`Error data: ${JSON.stringify(err.response.data, null, 2)}`)
 
-    // // Decode the payment response from the header.
-    // const paymentResponse = decodeXPaymentResponse(err.response.config.headers['X-PAYMENT'])
-    // console.log(paymentResponse)
-    // }
+      // Decode the payment response from the header.
+      const paymentResponse = decodeXPaymentResponse(err.response.config.headers['X-PAYMENT'])
+      console.log(paymentResponse)
+    }
   } catch (err) {
     console.error('Error starting client:', err)
   }
