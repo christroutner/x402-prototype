@@ -173,9 +173,91 @@ export function paymentMiddleware (payTo, routes, facilitator) {
       return
     }
 
-    // Placeholder for future payment verification logic
-    console.log('X-PAYMENT header present:', payment)
-    // TODO: Implement payment verification logic here
+    // Parse X-PAYMENT header (BCH uses JSON string, not base64 like EVM)
+    let decodedPayment
+    try {
+      decodedPayment = JSON.parse(payment)
+
+      // Validate required fields
+      if (!decodedPayment.x402Version || !decodedPayment.scheme || !decodedPayment.network || !decodedPayment.payload) {
+        throw new Error('Missing required fields in payment payload')
+      }
+
+      // Ensure x402Version is set
+      decodedPayment.x402Version = x402Version
+    } catch (error) {
+      console.error('Error parsing X-PAYMENT header:', error)
+      res.status(402).json({
+        x402Version,
+        error: error.message || 'Invalid or malformed payment header',
+        accepts: paymentRequirements
+      })
+      return
+    }
+
+    // Find matching payment requirements based on scheme and network
+    const selectedPaymentRequirements = paymentRequirements.find(req => {
+      return req.scheme === decodedPayment.scheme && req.network === decodedPayment.network
+    })
+
+    if (!selectedPaymentRequirements) {
+      res.status(402).json({
+        x402Version,
+        error: 'Unable to find matching payment requirements',
+        accepts: paymentRequirements
+      })
+      return
+    }
+
+    // Get facilitator URL (default to localhost:4040 if not provided)
+    const facilitatorUrl = facilitator?.url || 'http://localhost:4040/facilitator'
+
+    const url = `${facilitatorUrl}/verify`
+    console.log('facilitator URL:', url)
+
+    // Call facilitator /verify endpoint
+    try {
+      const verifyResponse = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          x402Version,
+          paymentPayload: decodedPayment,
+          paymentRequirements: selectedPaymentRequirements
+        })
+      })
+      console.log('verifyResponse:', verifyResponse)
+
+      if (!verifyResponse.ok) {
+        throw new Error(`Facilitator verification failed: ${verifyResponse.status} ${verifyResponse.statusText}`)
+      }
+
+      const verificationResult = await verifyResponse.json()
+
+      // Handle verification response
+      if (!verificationResult.isValid) {
+        res.status(402).json({
+          x402Version,
+          error: verificationResult.invalidReason || 'Payment verification failed',
+          accepts: paymentRequirements,
+          payer: verificationResult.payer || ''
+        })
+        return
+      }
+
+      // Payment verified successfully - continue to next middleware
+      console.log('Payment verified successfully for payer:', verificationResult.payer)
+    } catch (error) {
+      console.error('Error during payment verification:', error)
+      res.status(402).json({
+        x402Version,
+        error: error.message || 'Payment verification failed',
+        accepts: paymentRequirements
+      })
+      return
+    }
 
     // Continue to the next middleware or route handler
     next()

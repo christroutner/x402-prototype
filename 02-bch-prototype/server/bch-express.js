@@ -13,7 +13,7 @@ async function startServer () {
     config()
 
     // Constants
-    const facilitatorUrl = process.env.FACILITATOR_URL || 'http://localhost:4040'
+    const facilitatorUrl = process.env.FACILITATOR_URL || 'http://localhost:4040/facilitator'
     const payTo = process.env.ADDRESS || 'bitcoincash:qqlrzp23w08434twmvr4fxw672whkjy0py26r63g3d'
     const port = process.env.PORT || 4021
 
