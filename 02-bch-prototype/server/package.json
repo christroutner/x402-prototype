@@ -1,0 +1,21 @@
+{
+  "name": "x402-server-prototype",
+  "version": "1.0.0",
+  "description": "Prototyping x402 REST API",
+  "main": "bch-express.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bch-express.js",
+    "lint": "standard --env mocha --fix"
+  },
+  "author": "Chris Troutner <chris.troutner@gmail.com>",
+  "license": "GPL-3.0",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "17.2.3",
+    "express": "5.1.0"
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
+  }
+}

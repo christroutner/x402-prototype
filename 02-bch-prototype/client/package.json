@@ -1,0 +1,21 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "description": "Axios client for interacting with x402 server",
+  "main": "bch-client.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bch-client.js",
+    "lint": "standard --env mocha --fix"
+  },
+  "author": "Chris Troutner <chris.troutner@gmail.com>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "axios": "1.13.1",
+    "dotenv": "17.2.3"
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
+  }
+}
