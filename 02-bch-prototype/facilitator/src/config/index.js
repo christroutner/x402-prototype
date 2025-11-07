@@ -1,0 +1,33 @@
+/*
+  Configuration for BCH Facilitator service
+*/
+
+import * as url from 'url'
+import { readFileSync } from 'fs'
+
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
+const pkgInfo = JSON.parse(readFileSync(`${__dirname.toString()}/../../package.json`))
+
+const version = pkgInfo.version
+
+export default {
+  // Server port
+  port: process.env.PORT || 4040,
+
+  // Environment
+  env: process.env.NODE_ENV || 'development',
+
+  // Logging level
+  logLevel: process.env.LOG_LEVEL || 'info',
+
+  // BCH Facilitator configuration
+  bchPrivateKey: process.env.BCH_PRIVATE_KEY,
+  network: process.env.NETWORK || 'bch',
+  minConfirmations: parseInt(process.env.MIN_CONFIRMATIONS || '1', 10),
+  restURL: process.env.BCH_REST_URL,
+  apiToken: process.env.BCH_API_TOKEN,
+  authPass: process.env.BCH_AUTH_PASS,
+
+  // Version
+  version
+}
