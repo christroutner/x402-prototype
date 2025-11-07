@@ -7,7 +7,6 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
 
 // Local libraries
 import config from '../src/config/index.js'
@@ -107,16 +106,6 @@ class Server {
   sleep (ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
   }
-}
-
-// Start the server if this file is run directly
-const __filename = fileURLToPath(import.meta.url)
-if (process.argv[1] === __filename) {
-  const server = new Server()
-  server.startServer().catch(err => {
-    console.error('Failed to start server:', err)
-    process.exit(1)
-  })
 }
 
 export default Server

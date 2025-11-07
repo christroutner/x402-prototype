@@ -4,6 +4,10 @@
 
 import * as url from 'url'
 import { readFileSync } from 'fs'
+import dotenv from 'dotenv'
+
+// Load environment variables before accessing process.env
+dotenv.config()
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url))
 const pkgInfo = JSON.parse(readFileSync(`${__dirname.toString()}/../../package.json`))
