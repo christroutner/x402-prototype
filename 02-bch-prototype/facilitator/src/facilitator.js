@@ -130,7 +130,7 @@ export class BCHFacilitator {
       }
 
       // Verify scheme matches
-      if (paymentRequirements.scheme !== 'exact' || paymentPayload.scheme !== 'exact') {
+      if (paymentRequirements.scheme !== 'utxo' || paymentPayload.scheme !== 'utxo') {
         return {
           isValid: false,
           invalidReason: 'invalid_scheme',
@@ -178,26 +178,35 @@ export class BCHFacilitator {
         }
       }
 
+      // Ignore these TODOs for now.
+      // TODO:
+      // - Get the TX information and isolate the vout
+      // - Make sure the vout address targets the 'to' address in the paymentRequirements
+      // - Make sure this is not a double spend
+      // - Check DB to see if this UTXO has been logged.
+      //   - If not, create a new entry with a debit for the first usage, return success.
+      //   - If it exists, debit this usage against the UTXO. If there is not enough left to debit, throw an error.
+
       // Check time window
-      const now = Math.floor(Date.now() / 1000)
-      const validAfter = parseInt(authorization.validAfter, 10)
-      const validBefore = parseInt(authorization.validBefore, 10)
+      // const now = Math.floor(Date.now() / 1000)
+      // const validAfter = parseInt(authorization.validAfter, 10)
+      // const validBefore = parseInt(authorization.validBefore, 10)
 
-      if (now < validAfter) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_authorization_valid_after',
-          payer: payerAddress
-        }
-      }
+      // if (now < validAfter) {
+      //   return {
+      //     isValid: false,
+      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_after',
+      //     payer: payerAddress
+      //   }
+      // }
 
-      if (now >= validBefore) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_authorization_valid_before',
-          payer: payerAddress
-        }
-      }
+      // if (now >= validBefore) {
+      //   return {
+      //     isValid: false,
+      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_before',
+      //     payer: payerAddress
+      //   }
+      // }
 
       // Verify recipient address matches
       if (authorization.to !== paymentRequirements.payTo) {
@@ -314,7 +323,7 @@ export class BCHFacilitator {
       const outputs = [
         {
           address: payTo,
-          amount: amount
+          amount
         }
       ]
 
@@ -509,4 +518,3 @@ export function createExpressAdapter (facilitator, router, basePath = '') {
     }
   })
 }
-

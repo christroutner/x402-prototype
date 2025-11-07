@@ -134,16 +134,16 @@ export function paymentMiddleware (payTo, routes, facilitator) {
     } = config
 
     // Hardcode maxAmountRequired for now (can be made configurable later)
-    const maxAmountRequired = '1000'
+    const minAmountRequired = 1000 // 1000 satoshis
 
     // Construct resource URL from request
     const resource = `${req.protocol}://${req.headers.host}${req.path}`
 
     // Build payment requirements object
     const paymentRequirements = [{
-      scheme: 'exact',
+      scheme: 'utxo',
       network: network || 'bch',
-      maxAmountRequired,
+      minAmountRequired,
       resource,
       description,
       mimeType,
@@ -164,6 +164,8 @@ export function paymentMiddleware (payTo, routes, facilitator) {
     const payment = req.header('X-PAYMENT')
 
     if (!payment) {
+      console.log(`Returning 402 with these payment requirements in the X-PAYMENT header: ${JSON.stringify(paymentRequirements, null, 2)}`)
+
       // Return 402 with payment requirements
       res.status(402).json({
         x402Version,

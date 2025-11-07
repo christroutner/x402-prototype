@@ -4,7 +4,8 @@
   "main": "bch-facilitator.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node bch-facilitator.js"
+    "start": "node bch-facilitator.js",
+    "lint": "standard --env mocha --fix"
   },
   "author": "",
   "license": "ISC",
@@ -13,5 +14,8 @@
     "dotenv": "17.2.3",
     "express": "5.1.0",
     "minimal-slp-wallet": "6.1.0"
+  },
+  "devDependencies": {
+    "standard": "17.1.2"
   }
 }

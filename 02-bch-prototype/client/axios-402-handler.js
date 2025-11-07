@@ -3,8 +3,10 @@
   Automatically handles 402 payment responses by creating and attaching X-PAYMENT headers.
 */
 
-import { randomBytes } from 'crypto'
+// Global libraries
+// import { randomBytes } from 'crypto'
 import { createRequire } from 'module'
+import BCHWallet from 'minimal-slp-wallet'
 
 const require = createRequire(import.meta.url)
 const BCHJS = require('@psf/bch-js')
@@ -15,7 +17,7 @@ const BCHJS = require('@psf/bch-js')
  * @param {string} privateKeyWIF - Private key in Wallet Import Format (WIF)
  * @returns {Object} Signer object with signMessage method and address property
  */
-export function createBCHSigner (privateKeyWIF) {
+export function createBCHSigner (privateKeyWIF, paymentAmountSats) {
   const bchjs = new BCHJS()
 
   // Create ECPair from WIF
@@ -27,6 +29,8 @@ export function createBCHSigner (privateKeyWIF) {
   return {
     ecpair,
     address,
+    wif: privateKeyWIF,
+    paymentAmountSats,
     /**
      * Signs a message using the private key.
      *
@@ -47,24 +51,28 @@ export function createBCHSigner (privateKeyWIF) {
  * @param {number} x402Version - x402 protocol version (default: 1)
  * @returns {Promise<string>} JSON string of the payment header
  */
-export async function createPaymentHeader (signer, paymentRequirements, x402Version = 1) {
+export async function createPaymentHeader (signer, paymentRequirements, x402Version = 1, txid, vout) {
+  // Instantiate minimal-slp-wallet
+  const bchWallet = new BCHWallet()
+  await bchWallet.walletInfoPromise
+
   // Generate random 32-byte nonce
-  const nonceBytes = randomBytes(32)
-  const nonce = '0x' + nonceBytes.toString('hex')
+  // const nonceBytes = randomBytes(32)
+  // const nonce = '0x' + nonceBytes.toString('hex')
 
   // Calculate timestamps
-  const now = Math.floor(Date.now() / 1000)
-  const validAfter = String(now - 60) // 60 seconds before current time
-  const validBefore = String(now + (paymentRequirements.maxTimeoutSeconds || 60))
+  // const now = Math.floor(Date.now() / 1000)
+  // const validAfter = String(now - 60) // 60 seconds before current time
+  // const validBefore = String(now + (paymentRequirements.maxTimeoutSeconds || 60))
 
   // Build authorization object
   const authorization = {
     from: signer.address,
     to: paymentRequirements.payTo,
     value: paymentRequirements.maxAmountRequired,
-    validAfter,
-    validBefore,
-    nonce
+    txid,
+    vout,
+    amount: signer.paymentAmountSats // Optional
   }
 
   // Create message to sign (JSON stringified authorization)
@@ -84,6 +92,8 @@ export async function createPaymentHeader (signer, paymentRequirements, x402Vers
     }
   }
 
+  console.log('axios-402-handler.js createPaymentHeader() paymentHeader:', paymentHeader)
+
   // Return as JSON string
   return JSON.stringify(paymentHeader)
 }
@@ -98,7 +108,7 @@ export async function createPaymentHeader (signer, paymentRequirements, x402Vers
 function selectPaymentRequirements (accepts) {
   // Filter for BCH network and exact scheme
   const bchRequirements = accepts.filter(req => {
-    return req.network === 'bch' && req.scheme === 'exact'
+    return req.network === 'bch' && req.scheme === 'utxo'
   })
 
   if (bchRequirements.length === 0) {
@@ -107,6 +117,39 @@ function selectPaymentRequirements (accepts) {
 
   // Return the first matching requirement
   return bchRequirements[0]
+}
+
+async function sendPayment (signer, paymentRequirements) {
+  try {
+    const wif = signer.wif
+
+    // Get the payment amount in satoshis. This can be the paymentAmountSats to
+    // pay on each batch payment, dictated by the user. Or it can be the
+    // minAmountRequired from the payment requirements.
+    const paymentAmountSats = signer.paymentAmountSats
+
+    // Initialize the wallet with the private key.
+    const bchWallet = new BCHWallet(wif)
+    await bchWallet.initialize()
+
+    // Send the payment
+    const receivers = [
+      {
+        address: paymentRequirements.payTo,
+        amountSat: paymentAmountSats
+      }
+    ]
+    const txid = await bchWallet.send(receivers)
+    console.log('Payment sent with txid: ', txid)
+
+    return {
+      txid,
+      vout: 0
+    }
+  } catch (err) {
+    console.error('Error in sendPayment()')
+    throw err
+  }
 }
 
 /**
@@ -147,11 +190,15 @@ export function withPaymentInterceptor (axiosInstance, signer) {
         // Select payment requirements
         const paymentRequirements = selectPaymentRequirements(accepts)
 
+        const { txid, vout } = await sendPayment(signer, paymentRequirements)
+
         // Create payment header
         const paymentHeader = await createPaymentHeader(
           signer,
           paymentRequirements,
-          x402Version || 1
+          x402Version || 1,
+          txid,
+          vout
         )
 
         // Mark request as retry to prevent loops

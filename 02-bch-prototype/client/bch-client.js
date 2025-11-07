@@ -15,6 +15,7 @@ async function main () {
     const privateKey = process.env.PRIVATE_KEY || 'L1eYaneXDDXy8VDig4Arwe8wYHbhtsA5wuQvwsKwhaYeneoZuKG4'
     const baseURL = process.env.RESOURCE_SERVER_URL || 'http://localhost:4021'
     const endpointPath = process.env.ENDPOINT_PATH || '/weather'
+    const paymentAmountSats = process.env.PAYMENT_AMOUNT_SATS || 2000
 
     if (!baseURL || !privateKey || !endpointPath) {
       console.error('Missing required environment variables')
@@ -38,7 +39,7 @@ async function main () {
 
     try {
       // Create a signer from the private key.
-      const signer = await createBCHSigner(privateKey)
+      const signer = await createBCHSigner(privateKey, paymentAmountSats)
 
       // Wrap axios with the payment interceptor for automatic payment and
       // retry when the 402 error is encountered.
