@@ -16,7 +16,7 @@ const version = pkgInfo.version
 
 export default {
   // Server port
-  port: process.env.PORT || 4040,
+  port: process.env.PORT || 4345,
 
   // Environment
   env: process.env.NODE_ENV || 'development',
