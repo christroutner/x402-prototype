@@ -49,6 +49,34 @@ class FacilitatorUseCase {
       console.log('validateUtxo() paymentPayload:', paymentPayload)
       console.log('validateUtxo() paymentRequirements:', paymentRequirements)
 
+      // Generate unique identifier for UTXO,
+      // UTXOs are uniquely identified by their TXID and the vout number.
+      const utxoId = `${paymentPayload.payload.authorization.txid}:${paymentPayload.payload.authorization.vout}`
+
+      // Try to get the UTXO information from the Level DB
+      let utxoInfo = null
+      try {
+        utxoInfo = await this.adapters.levelDB.utxoDb.get(utxoId)
+      } catch (err) {
+        /* exit quietly */
+      }
+
+      if (!utxoInfo) {
+        console.log('UTXO not found in Level DB')
+
+        // Verify the UTXO exists and is unspent.
+
+        // Verify the UTXO went to the Server address.
+
+        // Debit the cost of this first call against the UTXO.
+
+        // Add the UTXO to the Level DB.
+      } else {
+        // Debit the cost of this call against the UTXO.
+
+        // If the new balance is negative, return an error so the Server can return a 402 error.
+      }
+
       return false
     } catch (err) {
       console.error('Error in validateUtxo:', err)

@@ -8,6 +8,7 @@
 import BCHWalletAdapter from './bch-wallet.js'
 import Logger from './logger.js'
 import config from '../config/index.js'
+import LevelDBAdapter from './leveldb.js'
 
 class Adapters {
   constructor (localConfig = {}) {
@@ -22,6 +23,7 @@ class Adapters {
       apiToken: localConfig.apiToken || config.apiToken,
       authPass: localConfig.authPass || config.authPass
     })
+    this.levelDB = new LevelDBAdapter()
   }
 
   async start () {
@@ -30,6 +32,8 @@ class Adapters {
       // For now, we'll just log that adapters are ready
       this.logger.info('BCH Wallet adapter initialized.')
       this.logger.info(`Facilitator address: ${this.bchWallet.getFacilitatorAddress()}`)
+      await this.levelDB.openDb()
+      this.logger.info('Level DB adapter initialized.')
 
       return true
     } catch (err) {
