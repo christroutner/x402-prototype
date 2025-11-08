@@ -1,5 +1,11 @@
 /*
-  Facilitator use case for BCH payment verification and settlement
+  Facilitator use case for BCH payment verification and settlement.
+
+  High level overview:
+  - Client submits UTXO information as a proof of payment.
+  - Facilitator adds new UTXOs to the Level DB for quick lookup.
+  - Client can send any amount in UTXO. Each call is debited against that UTXO
+    until the amount is exhausted.
 */
 
 export const DEFAULT_MIN_CONFIRMATIONS = 1

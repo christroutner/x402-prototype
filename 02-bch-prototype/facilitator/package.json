@@ -9,12 +9,13 @@
     "lint": "standard --env mocha --fix"
   },
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0",
   "description": "",
   "dependencies": {
     "cors": "2.8.5",
     "dotenv": "17.2.3",
     "express": "5.1.0",
+    "level": "7.0.1",
     "minimal-slp-wallet": "6.1.0"
   },
   "devDependencies": {
