@@ -170,50 +170,6 @@ class FacilitatorUseCase {
           utxoInfo.totalDebitedSat ?? utxoInfo.totalDebited ?? '0'
         )
 
-        // const nowMs = Date.now()
-        // const lastCheckedMs = utxoInfo.lastChecked
-        //   ? Date.parse(utxoInfo.lastChecked)
-        //   : 0
-        // const shouldRevalidate =
-        //   !Number.isFinite(lastCheckedMs) ||
-        //   nowMs - lastCheckedMs > revalidateThresholdMs
-
-        // if (shouldRevalidate) {
-        //   let revalidation
-        //   try {
-        //     revalidation = await revalidateUtxo()
-        //   } catch (err) {
-        //     logger.error('Error revalidating existing UTXO:', err)
-        //     return {
-        //       isValid: false,
-        //       invalidReason: 'utxo_revalidation_failed'
-        //     }
-        //   }
-
-        //   if (!revalidation.isValid) {
-        //     return revalidation
-        //   }
-
-        //   const onChainRemaining =
-        //     revalidation.utxoAmountSat - totalDebitedSat
-
-        //   if (onChainRemaining < 0n) {
-        //     return {
-        //       isValid: false,
-        //       invalidReason: 'utxo_previous_spend_detected'
-        //     }
-        //   }
-
-        //   if (onChainRemaining < currentRemainingSat) {
-        //     currentRemainingSat = onChainRemaining
-        //   }
-
-        //   utxoInfo.confirmations = revalidation.confirmations
-        //   utxoInfo.receiverAddress = revalidation.outputAddress
-        //   utxoInfo.transactionValueSat =
-        //     revalidation.utxoAmountSat.toString()
-        // }
-
         const updatedRemainingSat = currentRemainingSat - callCostSat
 
         if (updatedRemainingSat < 0n) {
@@ -340,36 +296,7 @@ class FacilitatorUseCase {
         }
       }
 
-      // Check time window
-      // const now = Math.floor(Date.now() / 1000)
-      // const validAfter = parseInt(authorization.validAfter, 10)
-      // const validBefore = parseInt(authorization.validBefore, 10)
-
-      // if (now < validAfter) {
-      //   return {
-      //     isValid: false,
-      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_after',
-      //     payer: payerAddress
-      //   }
-      // }
-
-      // if (now >= validBefore) {
-      //   return {
-      //     isValid: false,
-      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_before',
-      //     payer: payerAddress
-      //   }
-      // }
-
-      // // Verify recipient address matches
-      // if (authorization.to !== paymentRequirements.payTo) {
-      //   return {
-      //     isValid: false,
-      //     invalidReason: 'invalid_exact_bch_payload_recipient_mismatch',
-      //     payer: payerAddress
-      //   }
-      // }
-
+      // Validate the UTXO is still valid for paying for this call.
       const utxoValidation = await this.validateUtxo({ paymentPayload, paymentRequirements })
       console.log('utxoValidation:', utxoValidation)
 
@@ -381,39 +308,10 @@ class FacilitatorUseCase {
         }
       }
 
-      // Verify amount meets requirements
-      const paymentAmount = BigInt(authorization.value)
-      const requiredAmount = BigInt(paymentRequirements.maxAmountRequired)
-
-      if (paymentAmount < requiredAmount) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_authorization_value',
-          payer: payerAddress
-        }
-      }
-
-      // Check balance
-      try {
-        const balanceData = await bchjs.Blockchain.getBalance(payerAddress)
-        const balance = balanceData.balance + balanceData.unconfirmedBalance
-
-        if (balance < paymentAmount) {
-          return {
-            isValid: false,
-            invalidReason: 'insufficient_funds',
-            payer: payerAddress
-          }
-        }
-      } catch (error) {
-        this.adapters.logger.error('Error checking balance:', error)
-        // Continue verification even if balance check fails
-        // The transaction will fail during settlement if balance is insufficient
-      }
-
       return {
         isValid: true,
-        payer: payerAddress
+        payer: payerAddress,
+        utxoId: utxoValidation.utxoId
       }
     } catch (error) {
       this.adapters.logger.error('Error in verifyPayment:', error)
