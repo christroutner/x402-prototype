@@ -49,6 +49,40 @@ class FacilitatorUseCase {
       console.log('validateUtxo() paymentPayload:', paymentPayload)
       console.log('validateUtxo() paymentRequirements:', paymentRequirements)
 
+      /*
+        Example paymentPayload and paymentRequirements:
+
+        FacilitatorUseCase verifyPayment() paymentPayload: {
+          x402Version: 1,
+          scheme: 'utxo',
+          network: 'bch',
+          payload: {
+            signature: 'IO7/1zZZV3qhpaaL29Z3ORc6osYKNLJvCvMg53Gf7uyNTtv4kIzBYLXu+Nl0459EzFL2zGHfFHU6AHO6MZ+Za4A=',
+            authorization: {
+              from: 'bitcoincash:qz9s2mccqamzppfq708cyfde5ejgmsr9hy7r3unmkk',
+              to: 'bitcoincash:qqlrzp23w08434twmvr4fxw672whkjy0py26r63g3d',
+              value: 1000,
+              txid: 'b74dcfc839eb3693be811be64e563171d83e191388fdda900f2d3b952df01ba7',
+              vout: 0,
+              amount: 2000
+            }
+          }
+        }
+        FacilitatorUseCase verifyPayment() paymentRequirements: {
+          scheme: 'utxo',
+          network: 'bch',
+          minAmountRequired: 1000,
+          resource: 'http://localhost:4021/weather',
+          description: 'Access to weather data',
+          mimeType: '',
+          payTo: 'bitcoincash:qqlrzp23w08434twmvr4fxw672whkjy0py26r63g3d',
+          maxTimeoutSeconds: 60,
+          asset: '0x0000000000000000000000000000000000000001',
+          outputSchema: { input: { type: 'http', method: 'GET', discoverable: true } },
+          extra: {}
+        }
+      */
+
       if (!paymentPayload?.payload?.authorization) {
         return {
           isValid: false,
@@ -60,104 +94,26 @@ class FacilitatorUseCase {
       // UTXOs are uniquely identified by their TXID and the vout number.
       const utxoId = `${paymentPayload.payload.authorization.txid}:${paymentPayload.payload.authorization.vout}`
 
+      // Ensure the UTXO database is initialized.
       const utxoDb = this.adapters?.levelDB?.utxoDb
       if (!utxoDb) {
         throw new Error('UTXO database not initialized')
       }
 
       const walletAdapter = this.adapters.bchWallet
-      const logger = this.adapters.logger
-      const bchjs = walletAdapter.getBCHJS()
+      // const logger = this.adapters.logger
+      // const bchjs = walletAdapter.bchjs
+
+      // Calculate the cost of the call in satoshis.
       const callCostSat = BigInt(
         paymentRequirements?.minAmountRequired ??
           paymentRequirements?.maxAmountRequired ??
           0
       )
-      const revalidateThresholdMs = 5 * 60 * 1000 // 5 minutes
+      // const revalidateThresholdMs = 5 * 60 * 1000 // 5 minutes
       const { authorization } = paymentPayload.payload
       const { txid, vout } = authorization
       const payerAddress = authorization.from
-
-      const ensureWalletReady = async () => {
-        if (!walletAdapter.isWalletInitialized()) {
-          await walletAdapter.initializeWallet()
-        }
-        return walletAdapter.getWallet()
-      }
-
-      const revalidateUtxo = async () => {
-        const wallet = await ensureWalletReady()
-        const isValid = await wallet.utxoIsValid({ txid, vout })
-        if (!isValid) {
-          return {
-            isValid: false,
-            invalidReason: 'utxo_not_spendable'
-          }
-        }
-
-        const rawTx = await bchjs.RawTransactions.getRawTransaction(txid, true)
-        const output = rawTx?.vout?.[vout]
-        if (!output) {
-          return {
-            isValid: false,
-            invalidReason: 'utxo_output_not_found'
-          }
-        }
-
-        const confirmations = rawTx.confirmations ?? 0
-        const minConfirmations =
-          paymentRequirements?.minConfirmations ??
-          walletAdapter.getMinConfirmations() ??
-          DEFAULT_MIN_CONFIRMATIONS
-
-        if (confirmations < minConfirmations) {
-          return {
-            isValid: false,
-            invalidReason: 'insufficient_confirmations',
-            confirmations
-          }
-        }
-
-        const outputAddress =
-          output?.scriptPubKey?.addresses?.[0] ||
-          output?.scriptPubKey?.cashAddrs?.[0] ||
-          ''
-        const expectedAddress = paymentRequirements?.payTo
-
-        if (expectedAddress && outputAddress !== expectedAddress) {
-          return {
-            isValid: false,
-            invalidReason: 'recipient_mismatch',
-            outputAddress
-          }
-        }
-
-        const valueBch = Number(output.value)
-        if (!Number.isFinite(valueBch)) {
-          return {
-            isValid: false,
-            invalidReason: 'invalid_utxo_value'
-          }
-        }
-
-        const utxoAmountSat = BigInt(
-          Math.round(valueBch * 1e8)
-        )
-
-        if (utxoAmountSat <= 0n) {
-          return {
-            isValid: false,
-            invalidReason: 'invalid_utxo_value'
-          }
-        }
-
-        return {
-          isValid: true,
-          utxoAmountSat,
-          outputAddress,
-          confirmations
-        }
-      }
 
       // Try to get the UTXO information from the Level DB
       let utxoInfo = null
@@ -170,27 +126,16 @@ class FacilitatorUseCase {
       if (!utxoInfo) {
         console.log('UTXO not found in Level DB')
 
-        let revalidation
-        try {
-          revalidation = await revalidateUtxo()
-        } catch (err) {
-          logger.error('Error validating new UTXO:', err)
-          return {
-            isValid: false,
-            invalidReason: 'utxo_validation_failed'
-          }
-        }
+        // Validate the UTXO
+        const utxoValidation = await walletAdapter.validateUtxo({ txid, vout })
+        console.log('utxoValidation:', utxoValidation)
 
-        if (!revalidation.isValid) {
-          return revalidation
-        }
-
-        const remainingBalanceSat = revalidation.utxoAmountSat - callCostSat
+        const remainingBalanceSat = BigInt(utxoValidation.utxoAmountSat) - callCostSat
         if (remainingBalanceSat < 0n) {
           return {
             isValid: false,
             invalidReason: 'insufficient_utxo_balance',
-            utxoAmountSat: revalidation.utxoAmountSat.toString()
+            utxoAmountSat: utxoValidation.utxoAmountSat.toString()
           }
         }
 
@@ -200,17 +145,17 @@ class FacilitatorUseCase {
           txid,
           vout,
           payerAddress,
-          receiverAddress: revalidation.outputAddress,
-          transactionValueSat: revalidation.utxoAmountSat.toString(),
+          receiverAddress: utxoValidation.receiverAddress,
+          transactionValueSat: utxoValidation.utxoAmountSat.toString(),
           remainingBalanceSat: remainingBalanceSat.toString(),
           totalDebitedSat: callCostSat.toString(),
           lastUpdated: timestamp,
           firstSeen: timestamp,
-          lastChecked: timestamp,
-          confirmations: revalidation.confirmations
+          lastChecked: timestamp
         }
 
         await utxoDb.put(utxoId, record)
+        console.log('UTXO added to Level DB')
 
         return {
           isValid: true,
@@ -218,56 +163,56 @@ class FacilitatorUseCase {
           utxoInfo: record
         }
       } else {
-        let currentRemainingSat = BigInt(
+        const currentRemainingSat = BigInt(
           utxoInfo.remainingBalanceSat ?? utxoInfo.remainingBalance ?? '0'
         )
         const totalDebitedSat = BigInt(
           utxoInfo.totalDebitedSat ?? utxoInfo.totalDebited ?? '0'
         )
 
-        const nowMs = Date.now()
-        const lastCheckedMs = utxoInfo.lastChecked
-          ? Date.parse(utxoInfo.lastChecked)
-          : 0
-        const shouldRevalidate =
-          !Number.isFinite(lastCheckedMs) ||
-          nowMs - lastCheckedMs > revalidateThresholdMs
+        // const nowMs = Date.now()
+        // const lastCheckedMs = utxoInfo.lastChecked
+        //   ? Date.parse(utxoInfo.lastChecked)
+        //   : 0
+        // const shouldRevalidate =
+        //   !Number.isFinite(lastCheckedMs) ||
+        //   nowMs - lastCheckedMs > revalidateThresholdMs
 
-        if (shouldRevalidate) {
-          let revalidation
-          try {
-            revalidation = await revalidateUtxo()
-          } catch (err) {
-            logger.error('Error revalidating existing UTXO:', err)
-            return {
-              isValid: false,
-              invalidReason: 'utxo_revalidation_failed'
-            }
-          }
+        // if (shouldRevalidate) {
+        //   let revalidation
+        //   try {
+        //     revalidation = await revalidateUtxo()
+        //   } catch (err) {
+        //     logger.error('Error revalidating existing UTXO:', err)
+        //     return {
+        //       isValid: false,
+        //       invalidReason: 'utxo_revalidation_failed'
+        //     }
+        //   }
 
-          if (!revalidation.isValid) {
-            return revalidation
-          }
+        //   if (!revalidation.isValid) {
+        //     return revalidation
+        //   }
 
-          const onChainRemaining =
-            revalidation.utxoAmountSat - totalDebitedSat
+        //   const onChainRemaining =
+        //     revalidation.utxoAmountSat - totalDebitedSat
 
-          if (onChainRemaining < 0n) {
-            return {
-              isValid: false,
-              invalidReason: 'utxo_previous_spend_detected'
-            }
-          }
+        //   if (onChainRemaining < 0n) {
+        //     return {
+        //       isValid: false,
+        //       invalidReason: 'utxo_previous_spend_detected'
+        //     }
+        //   }
 
-          if (onChainRemaining < currentRemainingSat) {
-            currentRemainingSat = onChainRemaining
-          }
+        //   if (onChainRemaining < currentRemainingSat) {
+        //     currentRemainingSat = onChainRemaining
+        //   }
 
-          utxoInfo.confirmations = revalidation.confirmations
-          utxoInfo.receiverAddress = revalidation.outputAddress
-          utxoInfo.transactionValueSat =
-            revalidation.utxoAmountSat.toString()
-        }
+        //   utxoInfo.confirmations = revalidation.confirmations
+        //   utxoInfo.receiverAddress = revalidation.outputAddress
+        //   utxoInfo.transactionValueSat =
+        //     revalidation.utxoAmountSat.toString()
+        // }
 
         const updatedRemainingSat = currentRemainingSat - callCostSat
 
@@ -298,10 +243,10 @@ class FacilitatorUseCase {
         }
       }
 
-      return {
-        isValid: false,
-        invalidReason: 'unknown_utxo_state'
-      }
+      // return {
+      //   isValid: false,
+      //   invalidReason: 'unknown_utxo_state'
+      // }
     } catch (err) {
       console.error('Error in validateUtxo:', err)
       return {
@@ -327,7 +272,7 @@ class FacilitatorUseCase {
     console.log('FacilitatorUseCase verifyPayment() paymentRequirements:', paymentRequirements)
 
     try {
-      const bchjs = this.adapters.bchWallet.getBCHJS()
+      const bchjs = this.adapters.bchWallet.bchjs
 
       // Verify network matches
       if (paymentRequirements.network !== 'bch') {

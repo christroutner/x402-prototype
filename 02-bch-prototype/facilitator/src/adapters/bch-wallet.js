@@ -2,117 +2,66 @@
   BCH Wallet adapter for Bitcoin Cash operations
 */
 
-import { createRequire } from 'module'
+// Global libraries
+import MinimalBCHWallet from 'minimal-slp-wallet'
 
-const require = createRequire(import.meta.url)
-const BCHJS = require('@psf/bch-js')
-const MinimalBCHWallet = require('minimal-slp-wallet')
+// Local libraries
+import config from '../config/index.js'
 
 class BCHWalletAdapter {
   constructor (localConfig = {}) {
-    if (!localConfig.bchPrivateKey) {
-      throw new Error('BCHWalletAdapter: bchPrivateKey is required')
-    }
+    // Encapsulate dependencies
+    this.msWallet = new MinimalBCHWallet()
+    this.bchjs = this.msWallet.bchjs
+    this.config = config
 
-    // Validate mainnet private key (must start with L or K)
-    const wif = localConfig.bchPrivateKey
-    if (!wif.startsWith('L') && !wif.startsWith('K')) {
-      throw new Error('BCHWalletAdapter: bchPrivateKey must be a mainnet WIF (starts with L or K)')
-    }
-
-    this.bchPrivateKey = localConfig.bchPrivateKey
-    this.network = localConfig.network || 'bch'
-    this.minConfirmations = localConfig.minConfirmations ?? 1
-
-    // Initialize bch-js with optional configuration
-    const bchjsOptions = {}
-    if (localConfig.restURL) {
-      bchjsOptions.restURL = localConfig.restURL
-    }
-    if (localConfig.apiToken) {
-      bchjsOptions.apiToken = localConfig.apiToken
-    }
-    if (localConfig.authPass) {
-      bchjsOptions.authPass = localConfig.authPass
-    }
-
-    this.bchjs = new BCHJS(bchjsOptions)
-
-    // Create ECPair from WIF to get facilitator address
-    const ecpair = this.bchjs.ECPair.fromWIF(this.bchPrivateKey)
-    this.facilitatorAddress = this.bchjs.ECPair.toCashAddress(ecpair)
-
-    // Initialize minimal-slp-wallet for transaction operations
-    // The wallet will be initialized asynchronously when needed
-    this.wallet = null
-    this.walletInitialized = false
+    // Bind 'this' object to all class methods
+    this.validateUtxo = this.validateUtxo.bind(this)
   }
 
-  /**
-   * Initialize the wallet (load UTXOs)
-   * Must be called before using settlePayment
-   */
-  async initializeWallet () {
-    if (this.walletInitialized) {
-      return
-    }
-
+  // Validate that a UTXO payment to the server was made.
+  async validateUtxo ({ txid, vout }) {
     try {
-      this.wallet = new MinimalBCHWallet(this.bchPrivateKey, {
-        restURL: this.bchjs.restURL,
-        apiToken: this.bchjs.apiToken,
-        authPass: this.bchjs.authPass
-      })
+      // Ensure the minimal-slp-wallet is ready
+      await this.msWallet.walletInfoPromise
 
-      // Wait for wallet creation
-      await this.wallet.walletInfoPromise
+      // Get the TX details
+      const txData = await this.msWallet.getTxData([txid])
+      console.log('txData: ', JSON.stringify(txData, null, 2))
 
-      // Initialize UTXO store
-      await this.wallet.initialize()
+      // Extract the sats sent and reciever address from the UTXO.
+      const voutData = txData[0]?.vout?.[vout]
+      const receiverAddress = voutData?.scriptPubKey?.addresses?.[0]
+      const valueBch = Number(voutData?.value)
+      const valueSats = Math.round(valueBch * 1e8)
 
-      this.walletInitialized = true
-    } catch (error) {
-      console.error('Error initializing wallet:', error)
-      throw new Error(`Failed to initialize wallet: ${error.message}`)
+      // Verify the receiver address is the server's address.
+      if (receiverAddress !== this.config.serverBchAddress) {
+        return {
+          isValid: false,
+          invalidReason: 'invalid_receiver_address',
+          utxoAmountSat: null
+        }
+      }
+
+      // TODO: Verify the payment did not trigger a Double Spend Proof.
+      // This call is only available in bch-js and requires a connection to bch-api.
+
+      return {
+        isValid: true,
+        invalidReason: 'valid_utxo',
+        utxoAmountSat: valueSats
+
+      }
+    } catch (err) {
+      console.error('Error in BCHWalletAdapter.validateUtxo()', err)
+
+      return {
+        isValid: false,
+        invalidReason: err.message,
+        utxoAmountSat: null
+      }
     }
-  }
-
-  /**
-   * Get the facilitator address
-   */
-  getFacilitatorAddress () {
-    return this.facilitatorAddress
-  }
-
-  /**
-   * Get BCHJS instance
-   */
-  getBCHJS () {
-    return this.bchjs
-  }
-
-  /**
-   * Get wallet instance (must be initialized first)
-   */
-  getWallet () {
-    if (!this.walletInitialized) {
-      throw new Error('Wallet not initialized. Call initializeWallet() first.')
-    }
-    return this.wallet
-  }
-
-  /**
-   * Check if wallet is initialized
-   */
-  isWalletInitialized () {
-    return this.walletInitialized
-  }
-
-  /**
-   * Get minimum confirmations required
-   */
-  getMinConfirmations () {
-    return this.minConfirmations
   }
 }
 

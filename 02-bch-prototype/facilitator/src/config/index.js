@@ -33,5 +33,7 @@ export default {
   authPass: process.env.BCH_AUTH_PASS,
 
   // Version
-  version
+  version,
+
+  serverBchAddress: process.env.SERVER_BCH_ADDRESS || 'bitcoincash:qqlrzp23w08434twmvr4fxw672whkjy0py26r63g3d'
 }

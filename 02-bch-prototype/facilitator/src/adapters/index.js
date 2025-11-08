@@ -28,10 +28,6 @@ class Adapters {
 
   async start () {
     try {
-      // Wallet initialization can be deferred until needed
-      // For now, we'll just log that adapters are ready
-      this.logger.info('BCH Wallet adapter initialized.')
-      this.logger.info(`Facilitator address: ${this.bchWallet.getFacilitatorAddress()}`)
       await this.levelDB.openDb()
       this.logger.info('Level DB adapter initialized.')
 
