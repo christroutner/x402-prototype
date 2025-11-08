@@ -4,6 +4,7 @@
 
 // Global libraries
 import MinimalBCHWallet from 'minimal-slp-wallet'
+import RetryQueue from '@chris.troutner/retry-queue'
 
 // Local libraries
 import config from '../config/index.js'
@@ -14,6 +15,7 @@ class BCHWalletAdapter {
     this.msWallet = new MinimalBCHWallet()
     this.bchjs = this.msWallet.bchjs
     this.config = config
+    this.retryQueue = new RetryQueue()
 
     // Bind 'this' object to all class methods
     this.validateUtxo = this.validateUtxo.bind(this)
@@ -26,7 +28,8 @@ class BCHWalletAdapter {
       await this.msWallet.walletInfoPromise
 
       // Get the TX details
-      const txData = await this.msWallet.getTxData([txid])
+      // const txData = await this.msWallet.getTxData([txid])
+      const txData = await this.retryQueue.addToQueue(this.msWallet.getTxData, [txid])
       console.log('txData: ', JSON.stringify(txData, null, 2))
 
       // Extract the sats sent and reciever address from the UTXO.
