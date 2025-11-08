@@ -12,6 +12,13 @@ import RetryQueue from '@chris.troutner/retry-queue'
 const require = createRequire(import.meta.url)
 const BCHJS = require('@psf/bch-js')
 
+// Global variables
+const currentUtxo = {
+  txid: null,
+  vout: null,
+  satsLeft: null
+}
+
 /**
  * Creates a BCH signer from a private key in WIF format.
  *
@@ -148,7 +155,8 @@ async function sendPayment (signer, paymentRequirements) {
 
     return {
       txid,
-      vout: 0
+      vout: 0,
+      satsSent: paymentAmountSats
     }
   } catch (err) {
     console.error('Error in sendPayment()')
@@ -193,8 +201,32 @@ export function withPaymentInterceptor (axiosInstance, signer) {
 
         // Select payment requirements
         const paymentRequirements = selectPaymentRequirements(accepts)
+        const cost = paymentRequirements.minAmountRequired
 
-        const { txid, vout } = await sendPayment(signer, paymentRequirements)
+        let txid = null
+        let vout = null
+        let satsLeft = null
+        if (currentUtxo.txid === null || currentUtxo.satsLeft < cost) {
+          console.log('Sending a new payment to the server.')
+
+          // Send a new payment to the server.
+          const payment = await sendPayment(signer, paymentRequirements)
+          txid = payment.txid
+          vout = payment.vout
+          satsLeft = payment.satsSent - cost
+        } else {
+          console.log('Using the current UTXO being debited against.')
+
+          // Use the current UTXO being debited against.
+          txid = currentUtxo.txid
+          vout = currentUtxo.vout
+          satsLeft = currentUtxo.satsLeft - cost
+        }
+
+        // Update the info on the current UTXO being debited against.
+        currentUtxo.txid = txid
+        currentUtxo.vout = vout
+        currentUtxo.satsLeft = satsLeft
 
         // Create payment header
         const paymentHeader = await createPaymentHeader(
