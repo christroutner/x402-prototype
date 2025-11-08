@@ -31,6 +31,8 @@ class FacilitatorRESTControllerLib {
    */
   async listSupportedKinds (req, res) {
     try {
+      console.log('listSupportedKinds() called')
+
       const result = this.useCases.facilitator.listSupportedKinds()
       return res.status(200).json(result)
     } catch (err) {
@@ -44,6 +46,9 @@ class FacilitatorRESTControllerLib {
    */
   async verifyPayment (req, res) {
     try {
+      console.log('verifyPayment() called')
+      // console.log('req.body:', req.body)
+
       if (!req.body?.paymentPayload || !req.body?.paymentRequirements) {
         return res.status(400).json({
           error: 'Missing paymentPayload or paymentRequirements'
@@ -77,6 +82,8 @@ class FacilitatorRESTControllerLib {
    */
   async settlePayment (req, res) {
     try {
+      console.log('settlePayment() called')
+
       if (!req.body?.paymentPayload || !req.body?.paymentRequirements) {
         return res.status(400).json({
           error: 'Missing paymentPayload or paymentRequirements'

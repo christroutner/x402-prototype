@@ -69,7 +69,7 @@ export async function createPaymentHeader (signer, paymentRequirements, x402Vers
   const authorization = {
     from: signer.address,
     to: paymentRequirements.payTo,
-    value: paymentRequirements.maxAmountRequired,
+    value: paymentRequirements.minAmountRequired,
     txid,
     vout,
     amount: signer.paymentAmountSats // Optional

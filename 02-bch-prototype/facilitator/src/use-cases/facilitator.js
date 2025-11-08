@@ -12,6 +12,12 @@ class FacilitatorUseCase {
         'Instance of adapters must be passed in when instantiating Facilitator Use Case.'
       )
     }
+
+    // Bind 'this' object to all class methods
+    this.listSupportedKinds = this.listSupportedKinds.bind(this)
+    this.validateUtxo = this.validateUtxo.bind(this)
+    this.verifyPayment = this.verifyPayment.bind(this)
+    this.settlePayment = this.settlePayment.bind(this)
   }
 
   /**
@@ -31,6 +37,19 @@ class FacilitatorUseCase {
     }
   }
 
+  // Validate a payment UTXO
+  async validateUtxo ({ paymentPayload, paymentRequirements }) {
+    try {
+      console.log('validateUtxo() paymentPayload:', paymentPayload)
+      console.log('validateUtxo() paymentRequirements:', paymentRequirements)
+
+      return false
+    } catch (err) {
+      console.error('Error in validateUtxo:', err)
+      return false
+    }
+  }
+
   /**
    * Verifies a payment authorization without settling it on-chain.
    *
@@ -42,8 +61,8 @@ class FacilitatorUseCase {
    * @returns Verification result with validity and payer address
    */
   async verifyPayment (paymentPayload, paymentRequirements) {
-    this.adapters.logger.info('FacilitatorUseCase verifyPayment() paymentPayload:', paymentPayload)
-    this.adapters.logger.info('FacilitatorUseCase verifyPayment() paymentRequirements:', paymentRequirements)
+    console.log('FacilitatorUseCase verifyPayment() paymentPayload:', paymentPayload)
+    console.log('FacilitatorUseCase verifyPayment() paymentRequirements:', paymentRequirements)
 
     try {
       const bchjs = this.adapters.bchWallet.getBCHJS()
@@ -115,34 +134,37 @@ class FacilitatorUseCase {
       }
 
       // Check time window
-      const now = Math.floor(Date.now() / 1000)
-      const validAfter = parseInt(authorization.validAfter, 10)
-      const validBefore = parseInt(authorization.validBefore, 10)
+      // const now = Math.floor(Date.now() / 1000)
+      // const validAfter = parseInt(authorization.validAfter, 10)
+      // const validBefore = parseInt(authorization.validBefore, 10)
 
-      if (now < validAfter) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_authorization_valid_after',
-          payer: payerAddress
-        }
-      }
+      // if (now < validAfter) {
+      //   return {
+      //     isValid: false,
+      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_after',
+      //     payer: payerAddress
+      //   }
+      // }
 
-      if (now >= validBefore) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_authorization_valid_before',
-          payer: payerAddress
-        }
-      }
+      // if (now >= validBefore) {
+      //   return {
+      //     isValid: false,
+      //     invalidReason: 'invalid_exact_bch_payload_authorization_valid_before',
+      //     payer: payerAddress
+      //   }
+      // }
 
-      // Verify recipient address matches
-      if (authorization.to !== paymentRequirements.payTo) {
-        return {
-          isValid: false,
-          invalidReason: 'invalid_exact_bch_payload_recipient_mismatch',
-          payer: payerAddress
-        }
-      }
+      // // Verify recipient address matches
+      // if (authorization.to !== paymentRequirements.payTo) {
+      //   return {
+      //     isValid: false,
+      //     invalidReason: 'invalid_exact_bch_payload_recipient_mismatch',
+      //     payer: payerAddress
+      //   }
+      // }
+
+      const utxoIsValid = await this.validateUtxo({ paymentPayload, paymentRequirements })
+      console.log('utxoIsValid:', utxoIsValid)
 
       // Verify amount meets requirements
       const paymentAmount = BigInt(authorization.value)
