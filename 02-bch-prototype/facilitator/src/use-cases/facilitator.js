@@ -75,6 +75,8 @@ class FacilitatorUseCase {
         // Debit the cost of this call against the UTXO.
 
         // If the new balance is negative, return an error so the Server can return a 402 error.
+
+        // Save the updated UTXO information to the Level DB.
       }
 
       return false
