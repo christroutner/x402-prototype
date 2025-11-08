@@ -12,6 +12,7 @@
   "author": "Chris Troutner <chris.troutner@gmail.com>",
   "license": "GPL-3.0",
   "dependencies": {
+    "@chris.troutner/retry-queue": "1.0.11",
     "axios": "1.13.1",
     "dotenv": "17.2.3",
     "minimal-slp-wallet": "6.1.0"

@@ -7,6 +7,7 @@
 // import { randomBytes } from 'crypto'
 import { createRequire } from 'module'
 import BCHWallet from 'minimal-slp-wallet'
+import RetryQueue from '@chris.troutner/retry-queue'
 
 const require = createRequire(import.meta.url)
 const BCHJS = require('@psf/bch-js')
@@ -132,6 +133,8 @@ async function sendPayment (signer, paymentRequirements) {
     const bchWallet = new BCHWallet(wif)
     await bchWallet.initialize()
 
+    const retryQueue = new RetryQueue()
+
     // Send the payment
     const receivers = [
       {
@@ -139,7 +142,8 @@ async function sendPayment (signer, paymentRequirements) {
         amountSat: paymentAmountSats
       }
     ]
-    const txid = await bchWallet.send(receivers)
+    // const txid = await bchWallet.send(receivers)
+    const txid = await retryQueue.addToQueue(bchWallet.send, receivers)
     console.log('Payment sent with txid: ', txid)
 
     return {
