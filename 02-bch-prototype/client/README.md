@@ -62,3 +62,7 @@ Facilitator responses (such as remaining satoshis) are visible in the console ou
 
 For full protocol details, consult `../../../x402-bch/specs/x402-bch-specification.md`.
 
+## Future Work
+
+- `axios-402-handler.js` will be abstracted and packaged into it's own library, similar to [x402-axios](https://www.npmjs.com/package/x402-axios).
+- Unit tests will be added for this example

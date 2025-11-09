@@ -12,10 +12,11 @@ async function main () {
     // Load environment variables
     config()
 
+    // Fund the private key by sending BCH to: bitcoincash:qz9s2mccqamzppfq708cyfde5ejgmsr9hy7r3unmkk
     const privateKey = process.env.PRIVATE_KEY || 'L1eYaneXDDXy8VDig4Arwe8wYHbhtsA5wuQvwsKwhaYeneoZuKG4'
     const baseURL = process.env.RESOURCE_SERVER_URL || 'http://localhost:4021'
     const endpointPath = process.env.ENDPOINT_PATH || '/weather'
-    const paymentAmountSats = process.env.PAYMENT_AMOUNT_SATS || 2000
+    const paymentAmountSats = parseInt(process.env.PAYMENT_AMOUNT_SATS) || 2000
 
     if (!baseURL || !privateKey || !endpointPath) {
       console.error('Missing required environment variables')
@@ -61,6 +62,8 @@ async function main () {
       // Decode the payment response from the header.
       // const paymentResponse = decodeXPaymentResponse(err.response.config.headers['X-PAYMENT'])
       // console.log(paymentResponse)
+
+      process.exit(1)
     }
 
     // Step 3: Make a third call an pay with the UTXO created in step 2.
