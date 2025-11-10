@@ -1,11 +1,11 @@
 {
   "name": "facilitator",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "base-facilitator.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
+    "start": "node base-facilitator.js",
     "lint": "standard --env mocha --fix"
   },
   "author": "",
